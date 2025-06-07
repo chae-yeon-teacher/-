@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>함께 알아봐요! 장애인 교통수단</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap');
+
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #f0f8ff; /* 연한 하늘색 배경 */
+            padding: 20px;
+            color: #333;
+        }
+        h1 {
+            color: #4682b4; /* 스틸 블루 */
+            margin-bottom: 30px;
+            font-weight: 700;
+        }
+        .buttons-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 30px;
+            justify-content: center;
+        }
+        .person-button {
+            background-color: #ffd700; /* 황금색 */
+            border: none;
+            border-radius: 25px;
+            padding: 12px 25px;
+            font-size: 1.1em;
+            font-weight: 700;
+            color: #333;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.2s;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
+        }
+        .person-button:hover {
+            background-color: #ffa500; /* 오렌지 */
+            transform: translateY(-3px);
+        }
+        .person-button.active {
+            background-color: #ff6347; /* 토마토 레드 */
+            color: white;
+            transform: translateY(-3px);
+        }
+        .chart-container {
+            width: 90%;
+            max-width: 800px;
+            background-color: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            display: none; /* 초기에는 숨김 */
+        }
+        .chart-title {
+            text-align: center;
+            font-size: 1.4em;
+            font-weight: 700;
+            color: #5f9ea0; /* 캐뎃 블루 */
+            margin-bottom: 15px;
+        }
+        .chart-description {
+            font-size: 0.9em;
+            text-align: center;
+            margin-bottom: 20px;
+            color: #666;
+        }
+        .tabs-container {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+            background-color: #e0f2f7;
+            border-radius: 10px;
+            padding: 5px;
+        }
+        .tab-button {
+            background-color: transparent;
+            border: none;
+            padding: 10px 20px;
+            font-size: 1em;
+            font-weight: 700;
+            color: #4682b4;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: background-color 0.3s, color 0.3s;
+        }
+        .tab-button.active {
+            background-color: #4682b4;
+            color: white;
+        }
+        #chartCanvas {
+            max-height: 400px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🚗 함께 알아봐요! 장애인 교통수단 🚌</h1>
+    <div class="buttons-container">
+        <button class="person-button" data-person="overall">모든 장애인</button>
+        <button class="person-button" data-person="physical">지체장애인</button>
+        <button class="person-button" data-person="visual">시각장애인</button>
+        <button class="person-button" data-person="hearing">청각장애인</button>
+    </div>
+
+    <div class="chart-container" id="chartContainer">
+        <div class="tabs-container">
+            <button class="tab-button active" data-type="local">지역 내 이동</button>
+            <button class="tab-button" data-type="inter">지역 간 이동</button>
+        </div>
+        <p class="chart-title" id="chartTitle"></p>
+        <p class="chart-description" id="chartDescription"></p>
+        <canvas id="chartCanvas"></canvas>
+    </div>
+
+    <script>
+        const personButtons = document.querySelectorAll('.person-button');
+        const tabButtons = document.querySelectorAll('.tab-button');
+        const chartContainer = document.getElementById('chartContainer');
+        const chartTitle = document.getElementById('chartTitle');
+        const chartDescription = document.getElementById('chartDescription');
+        const ctx = document.getElementById('chartCanvas').getContext('2d');
+        let myChart;
+
+        const data = {
+            'overall': {
+                'local': {
+                    title: '모든 장애인의 지역 내 이동 시 주로 이용하는 교통수단',
+                    description: '2021년 교통약자 이동편의 실태조사 결과 ',
+                    labels: ["버스", "지하철", "걸어서/휠체어", "자가용", "장애인 택시", "특별 교통수단", "무료 셔틀버스", "택시"],
+                    values: [40.4, 13.1, 13.9, 6.0, 10.7, 7.1, 2.1, 6.7] // 장애인 전체 데이터 (표에서 '장애인' 줄)
+                },
+                'inter': {
+                    title: '모든 장애인의 지역 간 이동 시 주로 이용하는 교통수단',
+                    description: '2021년 교통약자 이동편의 실태조사 결과 ',
+                    labels: ["승용차", "고속/시외버스", "기차", "장애인 택시", "비행기", "특별 교통수단", "택시", "여객선"],
+                    values: [63.0, 10.7, 8.1, 8.1, 0.8, 5.3, 0.9, 0.0] // 장애인 전체 데이터 (표에서 '장애인' 줄)
+                }
+            },
+            'physical': {
+                'local': {
+                    title: '지체장애인의 지역 내 이동 시 주로 이용하는 교통수단',
+                    description: '2021년 교통약자 이동편의 실태조사 결과 ',
+                    labels: ["버스", "지하철", "걸어서/휠체어", "자가용", "장애인 택시", "특별 교통수단", "무료 셔틀버스", "택시"],
+                    values: [38.9, 15.4, 12.3, 7.0, 8.1, 11.9, 0.9, 5.5]
+                },
+                'inter': {
+                    title: '지체장애인의 지역 간 이동 시 주로 이용하는 교통수단',
+                    description: '2021년 교통약자 이동편의 실태조사 결과 ',
+                    labels: ["승용차", "고속/시외버스", "기차", "장애인 택시", "비행기", "특별 교통수단", "택시", "여객선"],
+                    values: [59.8, 10.6, 8.7, 5.7, 0.7, 8.7, 0.5, 0.0]
+                }
+            },
+            'visual': {
+                'local': {
+                    title: '시각장애인의 지역 내 이동 시 주로 이용하는 교통수단',
+                    description: '2021년 교통약자 이동편의 실태조사 결과 ',
+                    labels: ["버스", "지하철", "걸어서/휠체어", "자가용", "장애인 택시", "특별 교통수단", "무료 셔틀버스", "택시"],
+                    values: [34.6, 7.2, 13.5, 4.3, 20.2, 2.4, 5.3, 12.5]
+                },
+                'inter': {
+                    title: '시각장애인의 지역 간 이동 시 주로 이용하는 교통수단',
+                    description: '2021년 교통약자 이동편의 실태조사 결과 ',
+                    labels: ["승용차", "고속/시외버스", "기차", "장애인 택시", "비행기", "특별 교통수단", "택시", "여객선"],
+                    values: [67.7, 7.1, 5.6, 14.1, 1.0, 2.0, 1.5, 0.0]
+                }
+            },
+            'hearing': {
+                'local': {
+                    title: '청각장애인의 지역 내 이동 시 주로 이용하는 교통수단',
+                    description: '2021년 교통약자 이동편의 실태조사 결과 ',
+                    labels: ["버스", "지하철", "걸어서/휠체어", "자가용", "장애인 택시", "특별 교통수단", "무료 셔틀버스", "택시"],
+                    values: [50.8, 14.1, 18.6, 5.1, 6.2, 0.6, 1.7, 2.8]
+                },
+                'inter': {
+                    title: '청각장애인의 지역 간 이동 시 주로 이용하는 교통수단',
+                    description: '2021년 교통약자 이동편의 실태조사 결과 ',
+                    labels: ["승용차", "고속/시외버스", "기차", "장애인 택시", "비행기", "특별 교통수단", "택시", "여객선"],
+                    values: [65.5, 14.9, 9.2, 6.9, 0.6, 0.6, 1.1, 0.0]
+                }
+            }
+        };
+
+        let currentPerson = 'overall'; // 기본값 설정
+        let currentType = 'local'; // 기본값 설정
+
+        function updateChart() {
+            const chartData = data[currentPerson][currentType];
+            chartTitle.textContent = chartData.title;
+            chartDescription.innerHTML = chartData.description; // HTML을 포함할 수 있도록 innerHTML 사용
+
+            if (myChart) {
+                myChart.destroy();
+            }
+
+            myChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: chartData.labels,
+                    datasets: [{
+                        label: '이용률 (%)',
+                        data: chartData.values,
+                        backgroundColor: [
+                            'rgba(255, 99, 132, 0.7)',
+                            'rgba(54, 162, 235, 0.7)',
+                            'rgba(255, 206, 86, 0.7)',
+                            'rgba(75, 192, 192, 0.7)',
+                            'rgba(153, 102, 255, 0.7)',
+                            'rgba(255, 159, 64, 0.7)',
+                            'rgba(199, 199, 199, 0.7)',
+                            'rgba(83, 102, 255, 0.7)'
+                        ],
+                        borderColor: [
+                            'rgba(255, 99, 132, 1)',
+                            'rgba(54, 162, 235, 1)',
+                            'rgba(255, 206, 86, 1)',
+                            'rgba(75, 192, 192, 1)',
+                            'rgba(153, 102, 255, 1)',
+                            'rgba(255, 159, 64, 1)',
+                            'rgba(199, 199, 199, 1)',
+                            'rgba(83, 102, 255, 1)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': ' + context.raw + '%';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            title: {
+                                display: true,
+                                text: '이용률 (%)',
+                                font: {
+                                    family: 'Noto Sans KR',
+                                    size: 14
+                                }
+                            },
+                            ticks: {
+                                font: {
+                                    family: 'Noto Sans KR'
+                                }
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: '교통수단',
+                                font: {
+                                    family: 'Noto Sans KR',
+                                    size: 14
+                                }
+                            },
+                            ticks: {
+                                font: {
+                                    family: 'Noto Sans KR'
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            chartContainer.style.display = 'block';
+        }
+
+        personButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                personButtons.forEach(btn => btn.classList.remove('active'));
+                button.classList.add('active');
+                currentPerson = button.dataset.person;
+                updateChart();
+            });
+        });
+
+        tabButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                tabButtons.forEach(btn => btn.classList.remove('active'));
+                button.classList.add('active');
+                currentType = button.dataset.type;
+                updateChart();
+            });
+        });
+
+        // 초기 로드 시 '모든 장애인' 버튼을 활성화하고 차트 표시
+        document.querySelector('.person-button[data-person="overall"]').click();
+    </script>
+</body>
+</html>
